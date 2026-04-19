@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>COC 人格审判</title>
+    <meta
+      name="description"
+      content="24题测出你的 COC 四字母团桌代号。一个更高梗密度、更偏克苏鲁跑团黑话的专属人格测试。"
+    >
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23111111'/%3E%3Cpath d='M18 16h28v8H18zm0 12h18v8H18zm0 12h28v8H18z' fill='%23d5b26c'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="./src/styles.css">
+  </head>
+  <body>
+    <div class="noise"></div>
+    <main class="page-shell">
+      <section id="home-view" class="view view-active hero-view">
+        <div class="hero-card panel">
+          <p class="eyebrow">Call of Cthulhu Personality Experiment</p>
+          <h1 id="hero-title">COC 人格审判</h1>
+          <p id="hero-subtitle" class="hero-subtitle">24题测出你的 COC 四字母团桌代号</p>
+          <p id="hero-intro" class="hero-intro"></p>
+          <div class="stat-row" id="hero-stats"></div>
+          <div class="cta-row">
+            <button id="start-button" class="button button-primary">开始鉴定</button>
+            <a class="button button-ghost" href="#atlas">先看人格图鉴</a>
+            <a class="button button-ghost" href="./index.html">返回通用版</a>
+          </div>
+          <p class="hero-note">这个版本更偏 COC 黑话。侦查、聆听、图书馆、掉san、撕卡、坏KP，全都不会放过你。</p>
+        </div>
+
+        <div class="intro-grid">
+          <article class="panel intro-panel">
+            <p class="panel-kicker">测试结构</p>
+            <h2>更像你群里的那个调查员</h2>
+            <ul class="stack-list">
+              <li>24 道 COC 场景题，默认 3 分钟内做完</li>
+              <li>12 个隐藏维度，围绕侦查、掉san、保命、整活与嘴遁</li>
+              <li>16 个正式人格 + 多个隐藏人格，专门给 COC 玩家互相点名</li>
+            </ul>
+          </article>
+
+          <article class="panel intro-panel">
+            <p class="panel-kicker">结果导向</p>
+            <h2>掉 san 之前先掉面子</h2>
+            <ul class="stack-list">
+              <li>结果文案更重 COC 术语和群聊黑话</li>
+              <li>会额外检测 `SAN0`、`撕卡侠`、`坏KP受害者` 等隐藏人格</li>
+              <li>支持复制文案和导出 PNG 结果图</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section id="quiz-view" class="view panel quiz-view" hidden>
+        <div class="quiz-header">
+          <div>
+            <p class="eyebrow">Questionnaire</p>
+            <h2 id="question-counter"></h2>
+          </div>
+          <button id="restart-inline-button" class="text-button" type="button">重来</button>
+        </div>
+
+        <div class="progress-track">
+          <div id="progress-bar" class="progress-bar"></div>
+        </div>
+
+        <div class="question-meta">
+          <span id="question-dimension" class="dimension-pill"></span>
+        </div>
+
+        <h3 id="question-text" class="question-text"></h3>
+
+        <div id="question-options" class="option-list"></div>
+
+        <div class="quiz-actions">
+          <button id="prev-button" class="button button-ghost" type="button">上一题</button>
+          <button id="next-button" class="button button-primary" type="button">下一题</button>
+        </div>
+      </section>
+
+      <section id="result-view" class="view result-view" hidden>
+        <div class="result-hero panel">
+          <p class="eyebrow">Result</p>
+          <div class="result-hero-layout">
+            <div class="result-poster-shell">
+              <img id="result-poster" class="result-poster" alt="人格海报">
+            </div>
+            <div class="result-copy-block">
+              <div class="result-code-row">
+                <span id="result-code" class="result-code"></span>
+                <span id="result-name" class="result-name"></span>
+              </div>
+              <p id="result-tagline" class="result-tagline"></p>
+              <p id="result-note" class="result-note" hidden></p>
+              <p id="result-description" class="result-description"></p>
+              <p id="result-role" class="result-role"></p>
+              <ul id="result-traits" class="stack-list trait-list"></ul>
+              <div class="cta-row">
+                <button id="copy-button" class="button button-primary" type="button">复制分享文案</button>
+                <button id="download-button" class="button button-ghost" type="button">导出结果图</button>
+                <button id="restart-button" class="button button-ghost" type="button">再测一次</button>
+              </div>
+              <p id="copy-feedback" class="copy-feedback" aria-live="polite"></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="result-grid">
+          <article class="panel">
+            <p class="panel-kicker">维度概览</p>
+            <h2>你的 COC 桌边倾向</h2>
+            <div id="dimension-bars" class="dimension-bars"></div>
+          </article>
+
+          <article class="panel">
+            <p class="panel-kicker">Top 3</p>
+            <h2>最接近的三种调查员病症</h2>
+            <div id="top-matches" class="match-list"></div>
+          </article>
+        </div>
+      </section>
+
+      <section id="atlas" class="panel atlas-panel">
+        <div class="atlas-header">
+          <div>
+            <p class="eyebrow">Persona Atlas</p>
+            <h2>COC 16 人格图鉴</h2>
+          </div>
+          <p class="atlas-note">这些名字不是学术分析，是你们调查员固桌里的常驻病症。</p>
+        </div>
+        <div id="atlas-grid" class="atlas-grid"></div>
+      </section>
+    </main>
+
+    <script src="./src/coc-data.js"></script>
+    <script src="./src/app.js"></script>
+  </body>
+</html>

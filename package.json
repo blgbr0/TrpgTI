@@ -1,0 +1,11 @@
+{
+  "name": "imdm-tabletop-personality",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Static tabletop personality test site based on the revised 28-question bank.",
+  "scripts": {
+    "start": "node serve.js",
+    "preview": "node serve.js"
+  }
+}
+

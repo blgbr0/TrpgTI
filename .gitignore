@@ -1,0 +1,7 @@
+node_modules/
+*.log
+server.log
+server.err
+tunnel.log
+tunnel.err
+.playwright-mcp/
