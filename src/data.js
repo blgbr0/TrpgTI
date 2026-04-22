@@ -1,7 +1,7 @@
 (function () {
   window.RPG_PERSONALITY_TEST = {
     meta: {
-      title: "团桌生物鉴定",
+      title: "跑团职业检定",
       subtitle: "28 题测出你的四轴跑团代码",
       intro:
         "新版题库改成了 4 条二元轴：莽 / 苟、机制 / 乐子、独 / 团、戏精 / 功利。先跑出你的四轴代码，再把它映射到最像你的那种跑团职业人格。",

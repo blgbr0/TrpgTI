@@ -3,98 +3,83 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>团桌生物鉴定</title>
+    <title>跑团职业检定</title>
     <meta
       name="description"
-      content="28题测出你的四轴跑团代码。基于新版题库的静态跑团人格测试，按四条二元轴映射到 16 种跑团人格。"
+      content="28题测出你的跑团职业人格。基于新版题库的静态人格测试，映射到 16 种跑团职业结果。"
     >
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23111111'/%3E%3Cpath d='M18 16h28v8H18zm0 12h18v8H18zm0 12h28v8H18z' fill='%23d5b26c'/%3E%3C/svg%3E">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23111111'/%3E%3Cpath d='M18 16h28v8H18zm0 12h18v8H18zm0 12h28v8H18z' fill='%23d0a85c'/%3E%3Ccircle cx='48' cy='18' r='8' fill='%238f3c35'/%3E%3C/svg%3E">
     <link rel="stylesheet" href="./src/styles.css">
   </head>
   <body>
     <div class="noise"></div>
+    <div class="page-aura"></div>
     <main class="page-shell">
-      <section id="home-view" class="view view-active hero-view">
-        <div class="hero-card panel">
-          <p class="eyebrow">Tabletop Personality Experiment</p>
-          <h1 id="hero-title">团桌生物鉴定</h1>
-          <p id="hero-subtitle" class="hero-subtitle">28 题测出你的四轴跑团代码</p>
-          <p id="hero-intro" class="hero-intro"></p>
-          <div class="stat-row" id="hero-stats"></div>
+      <section id="home-view" class="view view-home">
+        <section class="panel hero-panel hero-panel-simple">
+          <p class="eyebrow">跑团测试</p>
+          <h1 id="hero-title">跑团职业检定</h1>
+          <p id="hero-subtitle" class="hero-subtitle">28 题，测出你的团桌职业</p>
           <div class="cta-row">
-            <button id="start-button" class="button button-primary">开始鉴定</button>
-            <a class="button button-ghost" href="#atlas">先看人格图鉴</a>
-            <a class="button button-ghost" href="./coc.html">切到 COC 版</a>
+            <button id="start-button" class="button button-primary" type="button">开始鉴定</button>
           </div>
-          <p class="hero-note">新版按 8 个标签计数，汇成 4 条二元轴。若某条轴平票，则按该轴最后一次相关选择判定，再映射到 16 种跑团人格。</p>
-        </div>
+        </section>
 
-        <div class="intro-grid">
-          <article class="panel intro-panel">
-            <p class="panel-kicker">测试结构</p>
-            <h2>题库已切到新版</h2>
-            <ul class="stack-list">
-              <li>28 道场景题，按开局、遭遇、互动、规则、绝境、骚操作、复盘 7 个部分展开</li>
-              <li>8 个标签直接计数：莽 / 苟、机制 / 乐子、独 / 团、戏精 / 功利</li>
-              <li>最终汇成 4 条二元轴，对应 16 种跑团人格结果</li>
-            </ul>
-          </article>
+        <section id="atlas" class="panel atlas-panel">
+          <p class="panel-kicker">16 人格图鉴</p>
+          <div id="atlas-grid" class="atlas-grid"></div>
+        </section>
+      </section>
 
-          <article class="panel intro-panel">
-            <p class="panel-kicker">结果结构</p>
-            <h2>先出代码，再看职业像谁</h2>
-            <ul class="stack-list">
-              <li>结果页展示四轴代码、人格名称、匹配理由和专属台词</li>
-              <li>仍保留每条轴的计数过程和 8 个标签分布，方便复盘</li>
-              <li>支持复制分享文案和导出结果图，适合直接发群互相认领</li>
-            </ul>
-          </article>
+      <section id="quiz-view" class="view view-quiz" hidden>
+        <div class="quiz-shell">
+          <aside class="panel quiz-sidebar">
+            <p class="eyebrow">公会登记</p>
+            <h2 id="question-counter" class="quiz-counter"></h2>
+            <p id="question-dimension" class="quiz-dimension"></p>
+            <div class="progress-meta">
+              <span id="quiz-progress-label">进度</span>
+              <strong id="quiz-progress-value"></strong>
+            </div>
+            <div class="progress-track">
+              <div id="progress-bar" class="progress-bar"></div>
+            </div>
+            <div class="quiz-side-actions">
+              <button id="quit-button" class="button button-ghost" type="button">返回首页</button>
+              <button id="restart-inline-button" class="button button-ghost button-muted" type="button">重置作答</button>
+            </div>
+          </aside>
+
+          <section class="panel quiz-panel">
+            <p class="panel-kicker">当前题目</p>
+            <h3 id="question-text" class="question-text"></h3>
+            <div id="question-options" class="option-list"></div>
+            <div class="quiz-actions">
+              <button id="prev-button" class="button button-ghost" type="button">上一题</button>
+              <p class="quiz-tip">点击选项后会自动进入下一题。</p>
+            </div>
+          </section>
         </div>
       </section>
 
-      <section id="quiz-view" class="view panel quiz-view" hidden>
-        <div class="quiz-header">
-          <div>
-            <p class="eyebrow">Questionnaire</p>
-            <h2 id="question-counter"></h2>
+      <section id="result-view" class="view view-result" hidden>
+        <article class="panel result-hero">
+          <div class="result-topbar">
+            <p class="eyebrow">鉴定结果</p>
+            <a id="result-home-link" class="text-link" href="./#atlas">返回图鉴</a>
           </div>
-          <button id="restart-inline-button" class="text-button" type="button">重来</button>
-        </div>
-
-        <div class="progress-track">
-          <div id="progress-bar" class="progress-bar"></div>
-        </div>
-
-        <div class="question-meta">
-          <span id="question-dimension" class="dimension-pill"></span>
-        </div>
-
-        <h3 id="question-text" class="question-text"></h3>
-
-        <div id="question-options" class="option-list"></div>
-
-        <div class="quiz-actions">
-          <button id="prev-button" class="button button-ghost" type="button">上一题</button>
-          <button id="next-button" class="button button-primary" type="button">下一题</button>
-        </div>
-      </section>
-
-      <section id="result-view" class="view result-view" hidden>
-        <div class="result-hero panel">
-          <p class="eyebrow">Result</p>
           <div class="result-hero-layout">
             <div class="result-poster-shell">
               <img id="result-poster" class="result-poster" alt="人格海报">
             </div>
             <div class="result-copy-block">
-              <div class="result-code-row">
+              <div class="result-badge-row">
                 <span id="result-code" class="result-code"></span>
-                <span id="result-name" class="result-name"></span>
+                <span class="result-badge">公会职业</span>
               </div>
-              <p id="result-tagline" class="result-tagline"></p>
-              <p id="result-note" class="result-note"></p>
-              <p id="result-description" class="result-description"></p>
-              <ul id="result-traits" class="stack-list trait-list"></ul>
+              <h1 id="result-name" class="result-name"></h1>
+              <blockquote id="result-quote" class="result-quote"></blockquote>
+              <p id="result-note" class="result-note" hidden></p>
               <div class="cta-row">
                 <button id="copy-button" class="button button-primary" type="button">复制分享文案</button>
                 <button id="copy-link-button" class="button button-ghost" type="button">复制结果链接</button>
@@ -104,32 +89,30 @@
               <p id="copy-feedback" class="copy-feedback" aria-live="polite"></p>
             </div>
           </div>
-        </div>
+        </article>
 
-        <div class="result-grid">
-          <article class="panel">
-            <p class="panel-kicker">四轴计分</p>
-            <h2>你的跑团判定过程</h2>
+        <section class="result-analysis">
+          <details id="profile-panel" class="panel analysis-card">
+            <summary>
+              <span>人格解析</span>
+            </summary>
+            <div id="result-profile" class="profile-copy"></div>
+          </details>
+
+          <details id="axis-panel" class="panel analysis-card">
+            <summary>
+              <span>四轴判定</span>
+            </summary>
             <div id="axis-results" class="axis-grid"></div>
-          </article>
+          </details>
 
-          <article class="panel">
-            <p class="panel-kicker">标签分布</p>
-            <h2>8 个标签计数</h2>
+          <details id="tag-panel" class="panel analysis-card">
+            <summary>
+              <span>8 标签计数</span>
+            </summary>
             <div id="tag-counts"></div>
-          </article>
-        </div>
-      </section>
-
-      <section id="atlas" class="panel atlas-panel">
-        <div class="atlas-header">
-          <div>
-            <p class="eyebrow">Persona Atlas</p>
-            <h2>16 种跑团人格图鉴</h2>
-          </div>
-          <p class="atlas-note">四轴代码已经全部映射成职业化人格标签，可以直接点名认领。</p>
-        </div>
-        <div id="atlas-grid" class="atlas-grid"></div>
+          </details>
+        </section>
       </section>
     </main>
 

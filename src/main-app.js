@@ -11,16 +11,19 @@
       return null;
     }),
     result: null,
+    advanceTimer: null,
   };
 
   var resultLookup = data.results.reduce(function (acc, item) {
     acc[item.code] = item;
     return acc;
   }, {});
+
   var resultSlugLookup = data.results.reduce(function (acc, item) {
     acc[item.slug] = item;
     return acc;
   }, {});
+
   var resultShortLookup = data.results.reduce(function (acc, item) {
     acc[item.shortCode] = item;
     return acc;
@@ -44,54 +47,118 @@
   var resultView = document.getElementById("result-view");
   var heroTitle = document.getElementById("hero-title");
   var heroSubtitle = document.getElementById("hero-subtitle");
-  var heroIntro = document.getElementById("hero-intro");
-  var heroStats = document.getElementById("hero-stats");
+  var atlasGrid = document.getElementById("atlas-grid");
   var startButton = document.getElementById("start-button");
   var restartInlineButton = document.getElementById("restart-inline-button");
+  var quitButton = document.getElementById("quit-button");
   var questionCounter = document.getElementById("question-counter");
   var questionDimension = document.getElementById("question-dimension");
+  var quizProgressValue = document.getElementById("quiz-progress-value");
   var questionText = document.getElementById("question-text");
   var questionOptions = document.getElementById("question-options");
   var progressBar = document.getElementById("progress-bar");
   var prevButton = document.getElementById("prev-button");
-  var nextButton = document.getElementById("next-button");
+  var resultHomeLink = document.getElementById("result-home-link");
   var resultCode = document.getElementById("result-code");
   var resultName = document.getElementById("result-name");
+  var resultQuote = document.getElementById("result-quote");
   var resultPoster = document.getElementById("result-poster");
-  var resultTagline = document.getElementById("result-tagline");
   var resultNote = document.getElementById("result-note");
-  var resultDescription = document.getElementById("result-description");
-  var resultTraits = document.getElementById("result-traits");
-  var axisResults = document.getElementById("axis-results");
-  var tagCounts = document.getElementById("tag-counts");
   var copyButton = document.getElementById("copy-button");
   var copyLinkButton = document.getElementById("copy-link-button");
   var downloadButton = document.getElementById("download-button");
   var restartButton = document.getElementById("restart-button");
   var copyFeedback = document.getElementById("copy-feedback");
-  var atlasGrid = document.getElementById("atlas-grid");
+  var resultProfile = document.getElementById("result-profile");
+  var axisResults = document.getElementById("axis-results");
+  var tagCounts = document.getElementById("tag-counts");
+  var profilePanel = document.getElementById("profile-panel");
+  var axisPanel = document.getElementById("axis-panel");
+  var tagPanel = document.getElementById("tag-panel");
+
+  function escapeHtml(text) {
+    return String(text)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
 
   function showView(viewName) {
     homeView.hidden = viewName !== "home";
     quizView.hidden = viewName !== "quiz";
     resultView.hidden = viewName !== "result";
+    document.body.setAttribute("data-view", viewName);
+  }
+
+  function clearPendingAdvance() {
+    if (state.advanceTimer) {
+      window.clearTimeout(state.advanceTimer);
+      state.advanceTimer = null;
+    }
+  }
+
+  function setFeedback(text) {
+    copyFeedback.textContent = text;
+  }
+
+  function getBasePageUrl() {
+    return window.location.origin + window.location.pathname;
+  }
+
+  function writeUrl(url) {
+    if (window.history && window.history.replaceState) {
+      window.history.replaceState(null, "", url);
+    }
+  }
+
+  function clearResultUrl() {
+    writeUrl(getBasePageUrl());
+  }
+
+  function getResultParamValue(result) {
+    var entry = result.entry || result;
+    return entry.slug || entry.shortCode || entry.code;
+  }
+
+  function buildResultLink(result) {
+    return getBasePageUrl() + "?result=" + encodeURIComponent(getResultParamValue(result));
+  }
+
+  function syncResultUrl(result) {
+    writeUrl(buildResultLink(result));
+  }
+
+  function scrollToTop() {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function getQuestionAxisCodes(question) {
+    var seen = {};
+
+    question.options.forEach(function (option) {
+      option.tags.forEach(function (tag) {
+        var meta = tagLookup[tag];
+        if (meta) {
+          seen[meta.axis.code] = true;
+        }
+      });
+    });
+
+    return data.axes
+      .filter(function (axis) {
+        return seen[axis.code];
+      })
+      .map(function (axis) {
+        return axis.code;
+      });
   }
 
   function renderHome() {
     heroTitle.textContent = data.meta.title;
-    heroSubtitle.textContent = data.meta.subtitle;
-    heroIntro.textContent = data.meta.intro;
-    heroStats.innerHTML = data.meta.stats
-      .map(function (item) {
-        return (
-          '<div class="stat-chip"><span class="stat-value">' +
-          item.value +
-          '</span><span class="stat-label">' +
-          item.label +
-          "</span></div>"
-        );
-      })
-      .join("");
+    heroSubtitle.textContent = "28 题，测出你的团桌职业";
+    renderAtlas("");
   }
 
   function getResultImagePath(item) {
@@ -127,88 +194,84 @@
     image.src = imagePath || fallback;
   }
 
-  function getBasePageUrl() {
-    return window.location.origin + window.location.pathname;
-  }
+  function buildPersonaCard(item, variant, activeCode) {
+    var cardClass = "atlas-card";
+    var posterClass = "atlas-poster";
+    var contentClass = "atlas-copy";
+    var metaClass = "atlas-meta";
+    var nameClass = "atlas-name";
+    var fallback = buildPosterDataUrl(item, 480, 620);
+    var activeClass = activeCode === item.code ? " is-active" : "";
 
-  function getResultParamValue(result) {
-    var entry = result.entry || result;
-    return entry.slug || entry.shortCode || entry.code;
-  }
-
-  function buildResultLink(result) {
-    return getBasePageUrl() + "?result=" + encodeURIComponent(getResultParamValue(result));
-  }
-
-  function writeUrl(url) {
-    if (window.history && window.history.replaceState) {
-      window.history.replaceState(null, "", url);
-    }
-  }
-
-  function clearResultUrl() {
-    writeUrl(getBasePageUrl());
-  }
-
-  function syncResultUrl(result) {
-    writeUrl(buildResultLink(result));
+    return (
+      '<button class="' +
+      cardClass +
+      activeClass +
+      '" type="button" data-result="' +
+      escapeHtml(item.slug) +
+      '">' +
+      '<img class="' +
+      posterClass +
+      ' js-poster" src="' +
+      escapeHtml(getResultImagePath(item)) +
+      '" data-fallback="' +
+      escapeHtml(fallback) +
+      '" alt="' +
+      escapeHtml(item.name) +
+      ' 人格海报">' +
+      '<div class="' +
+      contentClass +
+      '">' +
+      '<div class="' +
+      metaClass +
+      '">' +
+      '<span>' +
+      escapeHtml(item.shortCode) +
+      "</span>" +
+      "</div>" +
+      '<h3 class="' +
+      nameClass +
+      '">' +
+      escapeHtml(item.name) +
+      "</h3>" +
+      "</div>" +
+      "</button>"
+    );
   }
 
   function renderAtlas(activeCode) {
     atlasGrid.innerHTML = data.results
       .map(function (item) {
-        var activeClass = activeCode === item.code ? " is-active" : "";
-        var hasContent = Boolean(item.name && item.description);
-        var fallback = buildPosterDataUrl(item, 480, 620);
-        return (
-          '<article class="atlas-card' +
-          activeClass +
-          '">' +
-          '<img class="atlas-poster js-poster" src="' +
-          getResultImagePath(item) +
-          '" data-fallback="' +
-          fallback +
-          '" alt="' +
-          item.shortCode +
-          ' 人格海报">' +
-          '<div class="atlas-copy">' +
-          '<div class="atlas-code">' +
-          item.shortCode +
-          "</div>" +
-          '<h3 class="atlas-name">' +
-          (item.name || "未命名结果") +
-          "</h3>" +
-          '<p class="atlas-tagline">' +
-          item.code +
-          "</p>" +
-          '<p class="atlas-role">' +
-          (hasContent ? item.tagline : "该代码暂未配置完整文案。") +
-          "</p>" +
-          "</div>" +
-          "</article>"
-        );
+        return buildPersonaCard(item, "atlas", activeCode);
       })
       .join("");
 
     hydratePosterImages(atlasGrid);
   }
 
-  function startQuiz() {
-    state.currentIndex = 0;
-    state.answers = data.questions.map(function () {
+  function createEmptyAnswers() {
+    return data.questions.map(function () {
       return null;
     });
+  }
+
+  function startQuiz() {
+    clearPendingAdvance();
+    state.currentIndex = 0;
+    state.answers = createEmptyAnswers();
     state.result = null;
     clearResultUrl();
     setFeedback("");
     renderQuestion();
-    renderAtlas("");
     showView("quiz");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    scrollToTop();
   }
 
-  function restartQuiz() {
-    startQuiz();
+  function exitQuiz() {
+    clearPendingAdvance();
+    clearResultUrl();
+    showView("home");
+    scrollToTop();
   }
 
   function renderQuestion() {
@@ -218,7 +281,7 @@
 
     questionCounter.textContent = "第 " + (state.currentIndex + 1) + " 题";
     questionDimension.textContent = "第 " + question.part + " 部分 · " + question.section;
-    questionDimension.title = data.meta.tieBreakerRule;
+    quizProgressValue.textContent = state.currentIndex + 1 + " / " + data.questions.length;
     questionText.textContent = question.text;
     progressBar.style.width = progress + "%";
 
@@ -235,7 +298,7 @@
           String.fromCharCode(65 + optionIndex) +
           "</span>" +
           '<span class="option-label">' +
-          option.label +
+          escapeHtml(option.label) +
           "</span>" +
           "</button>"
         );
@@ -249,14 +312,13 @@
     });
 
     prevButton.disabled = state.currentIndex === 0;
-    nextButton.disabled = !answer;
-    nextButton.textContent =
-      state.currentIndex === data.questions.length - 1 ? "生成结果" : "下一题";
   }
 
   function selectAnswer(optionIndex) {
     var question = data.questions[state.currentIndex];
     var option = question.options[optionIndex];
+
+    clearPendingAdvance();
 
     state.answers[state.currentIndex] = {
       questionId: question.id,
@@ -265,13 +327,19 @@
       tags: option.tags.slice(),
     };
 
-    if (state.currentIndex === data.questions.length - 1) {
-      finishQuiz();
-      return;
-    }
-
-    state.currentIndex += 1;
     renderQuestion();
+
+    state.advanceTimer = window.setTimeout(function () {
+      state.advanceTimer = null;
+
+      if (state.currentIndex === data.questions.length - 1) {
+        finishQuiz();
+        return;
+      }
+
+      state.currentIndex += 1;
+      renderQuestion();
+    }, 140);
   }
 
   function goPrev() {
@@ -279,21 +347,8 @@
       return;
     }
 
+    clearPendingAdvance();
     state.currentIndex -= 1;
-    renderQuestion();
-  }
-
-  function goNext() {
-    if (!state.answers[state.currentIndex]) {
-      return;
-    }
-
-    if (state.currentIndex === data.questions.length - 1) {
-      finishQuiz();
-      return;
-    }
-
-    state.currentIndex += 1;
     renderQuestion();
   }
 
@@ -322,7 +377,7 @@
       isTie: isTie,
       total: leftCount + rightCount,
       note: isTie
-        ? axis.name + "平票（" + leftCount + ":" + rightCount + "），按最后一次相关选择判定为「" + winner.label + "」。"
+        ? axis.name + "平票（" + leftCount + ":" + rightCount + "），按最后一次相关选择判给「" + winner.label + "」。"
         : "",
     };
   }
@@ -337,8 +392,14 @@
       }
 
       answer.tags.forEach(function (tag) {
+        var meta = tagLookup[tag];
+
+        if (!meta) {
+          return;
+        }
+
         counts[tag] += 1;
-        lastTagByAxis[tagLookup[tag].axis.code] = tag;
+        lastTagByAxis[meta.axis.code] = tag;
       });
     });
 
@@ -396,11 +457,21 @@
   }
 
   function finishQuiz() {
+    clearPendingAdvance();
     state.result = computeResult();
     syncResultUrl(state.result);
     renderResult();
     showView("result");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    scrollToTop();
+  }
+
+  function openSharedResult(entry) {
+    clearPendingAdvance();
+    state.result = buildSharedResult(entry);
+    syncResultUrl(state.result);
+    renderResult();
+    showView("result");
+    scrollToTop();
   }
 
   function buildResultSummary(result) {
@@ -409,66 +480,50 @@
     }
 
     return (
-      "你的四轴代码已经确定为「" +
+      "你的四轴代码已经锁定为「" +
       result.code +
-      "」。当前这条结果走的是回退展示，所以先返回代码、各轴计数和标签分布。"
+      "」。这一型暂时只回传代码、轴向判定和标签计数，你可以先拿去认领，再回来补完整结果文案。"
     );
   }
 
   function buildAxisSummaryLines(result) {
     return result.axisBreakdown.map(function (item) {
-      var summary =
-        item.axis.name +
-        "：" +
-        item.winner.label +
-        "（" +
-        item.leftCount +
-        " : " +
-        item.rightCount +
-        "）";
+      var summary = item.axis.name + "：" + item.winner.label;
+
+      if (typeof item.leftCount === "number" && typeof item.rightCount === "number") {
+        summary += "（" + item.leftCount + " : " + item.rightCount + "）";
+      }
 
       if (item.isTie) {
-        summary += "，平票按最后一次相关选择判定。";
+        summary += "，平票时按最后一次相关选择判定。";
       }
 
       return summary;
     });
   }
 
-  function renderResult() {
-    var result = state.result;
+  function renderProfile(result) {
     var entry = result.entry || {};
-    var detailLines =
-      entry.traits && entry.traits.length ? entry.traits : buildAxisSummaryLines(result);
-    var noteText = "";
+    var traitLines = entry.traits && entry.traits.length ? entry.traits : buildAxisSummaryLines(result);
+    var lead = entry.role || "你的桌上职业已经被公会锁定。";
+    var body = entry.description || buildResultSummary(result);
 
-    if (result.sharedOnly) {
-      noteText = "这是一个可直接分享的人格结果页，未携带原始作答计分。重新作答可查看完整过程。";
-    } else if (result.tieNotes.length) {
-      noteText = result.tieNotes.join(" ");
-    } else if (!entry.name || !entry.description) {
-      noteText = data.meta.placeholderNote;
-    }
-
-    resultCode.textContent = result.shortCode;
-    resultName.textContent = entry.name || "未命名人格";
-    resultName.classList.toggle("is-placeholder", !entry.name);
-    setPosterImage(resultPoster, entry.code ? entry : result, 640, 820);
-    resultPoster.alt = result.shortCode + " 结果海报";
-    resultTagline.textContent = entry.tagline || result.code;
-    resultNote.textContent = noteText;
-    resultNote.hidden = !noteText;
-    resultDescription.textContent = entry.description || buildResultSummary(result);
-
-    resultTraits.innerHTML = detailLines
-      .map(function (line) {
-        return "<li>" + line + "</li>";
-      })
-      .join("");
-
-    renderAxisBreakdown(result.axisBreakdown);
-    renderTagCounts(result.tagCounts, result.axisBreakdown);
-    renderAtlas(result.code);
+    resultProfile.innerHTML =
+      '<div class="profile-block">' +
+      '<p class="profile-lead">' +
+      escapeHtml(lead) +
+      "</p>" +
+      '<p class="profile-description">' +
+      escapeHtml(body) +
+      "</p>" +
+      '<ul class="profile-traits">' +
+      traitLines
+        .map(function (line) {
+          return "<li>" + escapeHtml(line) + "</li>";
+        })
+        .join("") +
+      "</ul>" +
+      "</div>";
   }
 
   function renderAxisBreakdown(items) {
@@ -477,22 +532,28 @@
         var hasCounts = typeof item.leftCount === "number" && typeof item.rightCount === "number";
         var leftWidth = hasCounts && item.total ? (item.leftCount / item.total) * 100 : 50;
         var rightWidth = hasCounts && item.total ? (item.rightCount / item.total) * 100 : 50;
+        var note = hasCounts
+          ? item.isTie
+            ? "这条轴出现平票，按最后一次相关选择判定。"
+            : item.axis.description
+          : "分享结果只保留最终轴向，不包含原始作答计分。";
+
         return (
           '<article class="axis-card">' +
           '<div class="axis-card-header">' +
           '<div><p class="axis-card-kicker">' +
-          item.axis.name +
+          escapeHtml(item.axis.name) +
           '</p><h3 class="axis-card-title">' +
-          item.winner.label +
+          escapeHtml(item.winner.label) +
           "</h3></div>" +
           '<span class="axis-card-total">' +
-          (hasCounts ? item.leftCount + " : " + item.rightCount : "分享结果") +
+          escapeHtml(hasCounts ? item.leftCount + " : " + item.rightCount : "分享结果") +
           "</span>" +
           "</div>" +
           '<div class="axis-side-row"><span>' +
-          item.axis.left.label +
+          escapeHtml(item.axis.left.label) +
           "</span><span>" +
-          item.axis.right.label +
+          escapeHtml(item.axis.right.label) +
           "</span></div>" +
           '<div class="axis-meter">' +
           '<div class="axis-meter-left" style="width:' +
@@ -503,11 +564,7 @@
           '%"></div>' +
           "</div>" +
           '<p class="axis-card-note">' +
-          (hasCounts
-            ? item.isTie
-              ? "平票，按最后一次相关选择判定。"
-              : item.axis.description
-            : "该分享页只锁定了最终轴向，不包含原始答题计分。") +
+          escapeHtml(note) +
           "</p>" +
           "</article>"
         );
@@ -515,13 +572,12 @@
       .join("");
   }
 
-  function renderTagCounts(countMap, axisBreakdown) {
-    if (state.result && state.result.sharedOnly) {
+  function renderTagCounts(countMap, axisBreakdown, sharedOnly) {
+    if (sharedOnly) {
       tagCounts.innerHTML =
         '<div class="shared-panel">' +
-        '<p class="shared-panel-kicker">分享模式</p>' +
-        '<h3 class="shared-panel-title">这条链接只展示人格结果</h3>' +
-        '<p class="shared-panel-copy">8 个标签的原始计数没有跟着链接一起分享。想看完整计分过程，需要重新作答一次。</p>' +
+        "<h3>这条结果链接只分享人格，不分享原始计分。</h3>" +
+        "<p>想看 8 个标签的完整统计，需要重新做一次题。分享页只负责让你把这张公会鉴定卡直接丢进群里。</p>" +
         "</div>";
       return;
     }
@@ -537,23 +593,56 @@
         .map(function (item) {
           var activeClass = winnerMap[item.label] ? " is-active" : "";
           return (
-            '<div class="tag-chip' +
+            '<article class="tag-chip' +
             activeClass +
             '">' +
             '<span class="tag-chip-name">' +
-            item.label +
+            escapeHtml(item.label) +
             "</span>" +
             '<span class="tag-chip-axis">' +
-            item.axis.name +
+            escapeHtml(item.axis.name) +
             "</span>" +
             '<strong class="tag-chip-count">' +
-            countMap[item.label] +
+            escapeHtml(countMap[item.label]) +
             "</strong>" +
-            "</div>"
+            "</article>"
           );
         })
         .join("") +
       "</div>";
+  }
+
+  function renderResult() {
+    var result = state.result;
+    var entry = result.entry || {};
+    var noteText = "";
+
+    if (result.sharedOnly) {
+      noteText = "这是一个可直接分享的人格页，未携带原始作答计分。想看完整分析，需要重新作答一次。";
+    } else if (result.tieNotes.length) {
+      noteText = result.tieNotes.join(" ");
+    } else if (!entry.name || !entry.description) {
+      noteText = data.meta.placeholderNote;
+    }
+
+    resultCode.textContent = result.shortCode;
+    resultName.textContent = entry.name || "未命名人格";
+    resultQuote.textContent = entry.tagline || "这条人格暂未配置专属台词。";
+    resultQuote.hidden = !resultQuote.textContent;
+    resultNote.textContent = noteText;
+    resultNote.hidden = !noteText;
+    resultHomeLink.href = getBasePageUrl() + "#atlas";
+    setPosterImage(resultPoster, entry.code ? entry : result, 680, 860);
+    resultPoster.alt = result.shortCode + " 结果海报";
+
+    renderProfile(result);
+    renderAxisBreakdown(result.axisBreakdown);
+    renderTagCounts(result.tagCounts, result.axisBreakdown, result.sharedOnly);
+    renderAtlas(result.code);
+
+    profilePanel.open = false;
+    axisPanel.open = false;
+    tagPanel.open = false;
   }
 
   function buildShareText() {
@@ -568,24 +657,22 @@
         if (typeof item.leftCount === "number" && typeof item.rightCount === "number") {
           return item.axis.name + " " + item.leftCount + ":" + item.rightCount + " → " + item.winner.label;
         }
+
         return item.axis.name + " → " + item.winner.label;
       })
       .join("；");
 
     return [
-      "我测出来是：" + result.code + (entry.name ? "【" + entry.name + "】" : ""),
-      entry.tagline || "",
+      "我在《跑团职业检定》里测出来是：" + result.shortCode + (entry.name ? "｜" + entry.name : ""),
+      entry.role || "",
       entry.description || "",
-      "四轴计数：" + summary,
+      entry.tagline ? "专属台词：" + entry.tagline : "",
+      "四轴判定：" + summary,
       result.tieNotes.join(" "),
       "结果链接：" + buildResultLink(result),
     ]
       .filter(Boolean)
       .join("\n");
-  }
-
-  function setFeedback(text) {
-    copyFeedback.textContent = text;
   }
 
   function copyUsingTextarea(text) {
@@ -658,15 +745,13 @@
   }
 
   function splitText(text, maxChars) {
-    var lines = [];
     var normalized = String(text || "");
+    var lines = [];
+    var index = 0;
 
-    if (!normalized) {
-      return lines;
-    }
-
-    for (var i = 0; i < normalized.length; i += maxChars) {
-      lines.push(normalized.slice(i, i + maxChars));
+    while (index < normalized.length) {
+      lines.push(normalized.slice(index, index + maxChars));
+      index += maxChars;
     }
 
     return lines;
@@ -696,88 +781,84 @@
       .join("");
   }
 
+  function getPosterPalette(item) {
+    var entry = item.entry || item;
+    var family = entry.slug && entry.slug.indexOf("mang-") === 0 ? "mang" : "gou";
+    var isLezi = entry.slug && entry.slug.indexOf("-lezi-") > -1;
+
+    return {
+      accent: family === "mang" ? "#c66b43" : "#5f8d5f",
+      accentSoft: family === "mang" ? "#4a231a" : "#203224",
+      secondary: isLezi ? "#d5a65a" : "#4d6e97",
+      border: isLezi ? "rgba(213,166,90,0.28)" : "rgba(120,157,204,0.2)",
+      ink: "#f2e8d3",
+      muted: "#baa98d",
+    };
+  }
+
   function buildPosterSvg(item, width, height) {
     var entry = item.entry || item;
+    var palette = getPosterPalette(entry);
     var code = entry.code || item.code || "";
     var shortCode = entry.shortCode || item.shortCode || code.replace(/·/g, "");
-    var name = entry.name || "未命名结果";
-    var subText = entry.tagline || "先保留代码位，后续补人格文案";
-    var labels = code.split("·");
-    var gradientId = "poster-" + shortCode;
-    var chips = data.axes
-      .map(function (axis, index) {
-        var y = 270 + index * 62;
-        return (
-          '<rect x="40" y="' +
-          y +
-          '" width="' +
-          (width - 80) +
-          '" height="46" rx="16" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.12)"/>' +
-          '<text x="62" y="' +
-          (y + 29) +
-          '" font-size="18" fill="#b8ac93" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">' +
-          escapeSvg(axis.name) +
-          "</text>" +
-          '<text x="' +
-          (width - 62) +
-          '" y="' +
-          (y + 29) +
-          '" font-size="22" fill="#efe6d0" text-anchor="end" font-weight="700" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">' +
-          escapeSvg(labels[index] || "") +
-          "</text>"
-        );
-      })
-      .join("");
+    var name = entry.name || "未命名人格";
+    var role = entry.role || "公会等待你的职业画像回填。";
+    var quote = entry.tagline || "缺少人物海报时，先用这张公会鉴定卡顶上。";
+    var chips = code.split("·");
 
     return [
-      '<svg xmlns="http://www.w3.org/2000/svg" width="' +
-        width +
-        '" height="' +
-        height +
-        '" viewBox="0 0 ' +
-        width +
-        " " +
-        height +
-        '">',
+      '<svg xmlns="http://www.w3.org/2000/svg" width="' + width + '" height="' + height + '" viewBox="0 0 ' + width + " " + height + '">',
       "<defs>",
-      '<linearGradient id="' +
-        gradientId +
-        '" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#1a1713"/><stop offset="100%" stop-color="#111111"/></linearGradient>',
+      '<linearGradient id="card-bg" x1="0" y1="0" x2="1" y2="1">',
+      '<stop offset="0%" stop-color="#18120f"/>',
+      '<stop offset="100%" stop-color="' + palette.accentSoft + '"/>',
+      "</linearGradient>",
+      '<linearGradient id="card-glow" x1="0" y1="0" x2="1" y2="0">',
+      '<stop offset="0%" stop-color="' + palette.accent + '"/>',
+      '<stop offset="100%" stop-color="' + palette.secondary + '"/>',
+      "</linearGradient>",
       "</defs>",
-      '<rect width="' + width + '" height="' + height + '" rx="32" fill="url(#' + gradientId + ')"/>',
-      '<rect x="16" y="16" width="' +
-        (width - 32) +
-        '" height="' +
-        (height - 32) +
-        '" rx="24" fill="rgba(24,24,22,0.92)" stroke="rgba(231,211,170,0.22)"/>',
-      '<text x="' +
-        width / 2 +
-        '" y="92" font-size="16" fill="#d5b26c" letter-spacing="4" text-anchor="middle" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">TABLETOP CODE</text>',
-      '<text x="' +
-        width / 2 +
-        '" y="174" font-size="58" fill="#efe6d0" font-weight="700" text-anchor="middle" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">' +
-        escapeSvg(shortCode) +
-        "</text>",
-      '<text x="' +
-        width / 2 +
-        '" y="214" font-size="30" fill="#efe6d0" font-weight="700" text-anchor="middle" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">' +
-        escapeSvg(name) +
-        "</text>",
-      svgTextLines(splitText(code, 12), width / 2, 252, 28, 24, "#d5b26c", 500, "middle"),
-      chips,
-      '<rect x="40" y="' +
-        (height - 120) +
-        '" width="' +
-        (width - 80) +
-        '" height="64" rx="20" fill="rgba(213,178,108,0.10)" stroke="rgba(213,178,108,0.22)"/>',
-      '<text x="' +
-        width / 2 +
-        '" y="' +
-        (height - 82) +
-        '" font-size="18" fill="#efe6d0" text-anchor="middle" font-weight="700" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">' +
-        escapeSvg(entry.name ? "专属台词" : "未配置结果") +
-        "</text>",
-      svgTextLines(splitText(subText, 16).slice(0, 2), width / 2, height - 56, 20, 14, "#b8ac93", 400, "middle"),
+      '<rect width="' + width + '" height="' + height + '" rx="36" fill="url(#card-bg)"/>',
+      '<rect x="18" y="18" width="' + (width - 36) + '" height="' + (height - 36) + '" rx="28" fill="rgba(20,16,13,0.84)" stroke="' + palette.border + '"/>',
+      '<rect x="38" y="40" width="' + (width - 76) + '" height="108" rx="22" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.05)"/>',
+      '<text x="58" y="82" font-size="18" fill="#d0a85c" letter-spacing="4" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">冒险者公会</text>',
+      '<text x="58" y="122" font-size="48" fill="' + palette.ink + '" font-weight="700" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">' + escapeSvg(shortCode) + "</text>",
+      '<circle cx="' + (width - 84) + '" cy="94" r="38" fill="rgba(143,60,53,0.82)" stroke="rgba(242,232,211,0.12)"/>',
+      '<text x="' + (width - 84) + '" y="101" font-size="18" fill="#f2e8d3" text-anchor="middle" font-weight="700" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">D20</text>',
+      '<text x="58" y="212" font-size="44" fill="' + palette.ink + '" font-weight="700" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">' + escapeSvg(name) + "</text>",
+      svgTextLines(splitText(code, 12), 58, 252, 28, 24, "#d0a85c", 600),
+      '<rect x="58" y="292" width="' + (width - 116) + '" height="92" rx="22" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.04)"/>',
+      svgTextLines(splitText(role, 18).slice(0, 2), 82, 328, 26, 18, palette.ink, 600),
+      chips
+        .map(function (label, index) {
+          var y = 426 + index * 72;
+          return (
+            '<rect x="58" y="' +
+            y +
+            '" width="' +
+            (width - 116) +
+            '" height="50" rx="18" fill="rgba(255,255,255,0.025)" stroke="rgba(255,255,255,0.04)"/>' +
+            '<text x="82" y="' +
+            (y + 31) +
+            '" font-size="18" fill="#baa98d" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">' +
+            escapeSvg(data.axes[index].name) +
+            "</text>" +
+            '<text x="' +
+            (width - 82) +
+            '" y="' +
+            (y + 31) +
+            '" font-size="22" fill="' +
+            palette.ink +
+            '" font-weight="700" text-anchor="end" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">' +
+            escapeSvg(label || "") +
+            "</text>"
+          );
+        })
+        .join(""),
+      '<rect x="58" y="' + (height - 188) + '" width="' + (width - 116) + '" height="112" rx="24" fill="url(#card-glow)" opacity="0.16"/>',
+      '<rect x="58" y="' + (height - 188) + '" width="' + (width - 116) + '" height="112" rx="24" fill="rgba(20,16,13,0.4)" stroke="rgba(255,255,255,0.06)"/>',
+      '<text x="82" y="' + (height - 146) + '" font-size="16" fill="#d0a85c" letter-spacing="3" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">专属台词</text>',
+      svgTextLines(splitText(quote, 18).slice(0, 3), 82, height - 112, 24, 16, palette.ink, 400),
       "</svg>",
     ].join("");
   }
@@ -789,126 +870,113 @@
   function buildShareCardSvg() {
     var result = state.result;
     var entry = result.entry || {};
-    var rightX = 470;
-    var codeStartY = entry.name ? 322 : 280;
     var axisSvg = result.axisBreakdown
       .map(function (item, index) {
-        var y = 708 + index * 86;
+        var y = 760 + index * 94;
         var leftWidth = item.total ? Math.round((item.leftCount / item.total) * 300) : 150;
         var rightWidth = 300 - leftWidth;
         return (
-          '<text x="' +
-          rightX +
-          '" y="' +
+          '<text x="500" y="' +
           y +
-          '" font-size="20" fill="#efe6d0" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">' +
+          '" font-size="22" fill="#f2e8d3" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">' +
           escapeSvg(item.axis.name + " · " + item.winner.label) +
           "</text>" +
-          '<text x="1060" y="' +
+          '<text x="1050" y="' +
           y +
-          '" text-anchor="end" font-size="18" fill="#b8ac93" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">' +
-          item.leftCount +
-          " : " +
-          item.rightCount +
+          '" text-anchor="end" font-size="18" fill="#baa98d" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">' +
+          escapeSvg(typeof item.leftCount === "number" ? item.leftCount + " : " + item.rightCount : "分享结果") +
           "</text>" +
-          '<rect x="' +
-          rightX +
-          '" y="' +
+          '<rect x="500" y="' +
           (y + 18) +
           '" width="300" height="12" rx="6" fill="rgba(255,255,255,0.08)"/>' +
-          '<rect x="' +
-          rightX +
-          '" y="' +
+          '<rect x="500" y="' +
           (y + 18) +
           '" width="' +
           leftWidth +
-          '" height="12" rx="6" fill="#d5b26c"/>' +
+          '" height="12" rx="6" fill="#d0a85c"/>' +
           '<rect x="' +
-          (rightX + leftWidth) +
+          (500 + leftWidth) +
           '" y="' +
           (y + 18) +
           '" width="' +
           rightWidth +
-          '" height="12" rx="6" fill="#7fb08f"/>'
+          '" height="12" rx="6" fill="#7ab17c"/>'
         );
       })
       .join("");
 
-    var tagSvg = tagMetaList
-      .map(function (item, index) {
-        var x = 84 + (index % 4) * 150;
-        var y = 1100 + Math.floor(index / 4) * 94;
-        var count = result.tagCounts[item.label];
-        var active = result.axisBreakdown.some(function (axisItem) {
-          return axisItem.winner.label === item.label;
-        });
-        return (
-          '<rect x="' +
-          x +
-          '" y="' +
-          y +
-          '" width="128" height="70" rx="18" fill="' +
-          (active ? "rgba(213,178,108,0.14)" : "rgba(255,255,255,0.03)") +
-          '" stroke="' +
-          (active ? "rgba(213,178,108,0.28)" : "rgba(255,255,255,0.10)") +
-          '"/>' +
-          '<text x="' +
-          (x + 20) +
-          '" y="' +
-          (y + 26) +
-          '" font-size="15" fill="#b8ac93" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">' +
-          escapeSvg(item.axis.name) +
-          "</text>" +
-          '<text x="' +
-          (x + 20) +
-          '" y="' +
-          (y + 54) +
-          '" font-size="28" fill="#efe6d0" font-weight="700" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">' +
-          escapeSvg(item.label) +
-          "</text>" +
-          '<text x="' +
-          (x + 108) +
-          '" y="' +
-          (y + 54) +
-          '" text-anchor="end" font-size="24" fill="#d5b26c" font-weight="700" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">' +
-          count +
-          "</text>"
-        );
-      })
-      .join("");
-
-    var tieLines = result.tieNotes.length ? result.tieNotes : [data.meta.tieBreakerRule];
+    var tagSvg = result.sharedOnly
+      ? '<rect x="78" y="1178" width="1044" height="136" rx="28" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)"/>' +
+        '<text x="110" y="1240" font-size="28" fill="#f2e8d3" font-weight="700" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">这条链接只分享人格，不分享原始计分。</text>' +
+        svgTextLines(["想看 8 标签统计，需要重新作答一次。"], 110, 1284, 26, 20, "#baa98d", 400)
+      : tagMetaList
+          .map(function (item, index) {
+            var x = 78 + (index % 4) * 260;
+            var y = 1168 + Math.floor(index / 4) * 112;
+            var count = result.tagCounts[item.label];
+            var active = result.axisBreakdown.some(function (axisItem) {
+              return axisItem.winner.label === item.label;
+            });
+            return (
+              '<rect x="' +
+              x +
+              '" y="' +
+              y +
+              '" width="230" height="86" rx="20" fill="' +
+              (active ? "rgba(208,168,92,0.12)" : "rgba(255,255,255,0.03)") +
+              '" stroke="' +
+              (active ? "rgba(208,168,92,0.22)" : "rgba(255,255,255,0.05)") +
+              '"/>' +
+              '<text x="' +
+              (x + 24) +
+              '" y="' +
+              (y + 30) +
+              '" font-size="16" fill="#baa98d" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">' +
+              escapeSvg(item.axis.name) +
+              "</text>" +
+              '<text x="' +
+              (x + 24) +
+              '" y="' +
+              (y + 62) +
+              '" font-size="28" fill="#f2e8d3" font-weight="700" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">' +
+              escapeSvg(item.label) +
+              "</text>" +
+              '<text x="' +
+              (x + 206) +
+              '" y="' +
+              (y + 62) +
+              '" text-anchor="end" font-size="24" fill="#efcf90" font-weight="700" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">' +
+              escapeSvg(count) +
+              "</text>"
+            );
+          })
+          .join("");
 
     return [
       '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1600" viewBox="0 0 1200 1600">',
-      "<defs>",
-      '<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#121212"/><stop offset="100%" stop-color="#1a1713"/></linearGradient>',
-      "</defs>",
-      '<rect width="1200" height="1600" fill="url(#bg)"/>',
-      '<rect x="56" y="56" width="1088" height="1488" rx="28" fill="rgba(24,24,22,0.92)" stroke="rgba(231,211,170,0.22)"/>',
+      '<rect width="1200" height="1600" fill="#100d0b"/>',
+      '<rect x="36" y="36" width="1128" height="1528" rx="36" fill="rgba(28,22,18,0.96)" stroke="rgba(211,173,104,0.18)"/>',
       '<image href="' +
-        buildPosterDataUrl(result, 420, 580) +
-        '" x="84" y="154" width="320" height="440" preserveAspectRatio="xMidYMid meet"/>',
-      '<text x="470" y="154" font-size="18" fill="#d5b26c" letter-spacing="4" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">TABLETOP RESULT CODE</text>',
-      '<text x="470" y="232" font-size="64" fill="#efe6d0" font-weight="700" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">' +
+        buildPosterDataUrl(result, 440, 620) +
+        '" x="78" y="118" width="380" height="536" preserveAspectRatio="xMidYMid meet"/>',
+      '<text x="500" y="132" font-size="20" fill="#d0a85c" letter-spacing="5" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">冒险者公会鉴定报告</text>',
+      '<text x="500" y="224" font-size="68" fill="#f2e8d3" font-weight="700" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">' +
         escapeSvg(result.shortCode) +
         "</text>",
       entry.name
-        ? '<text x="470" y="276" font-size="30" fill="#efe6d0" font-weight="700" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">' +
+        ? '<text x="500" y="274" font-size="34" fill="#f2e8d3" font-weight="700" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">' +
           escapeSvg(entry.name) +
           "</text>"
         : "",
-      svgTextLines(splitText(result.code, 14), 470, codeStartY, 32, 28, "#d5b26c", 600),
-      '<rect x="470" y="360" width="548" height="88" rx="20" fill="rgba(213,178,108,0.10)" stroke="rgba(213,178,108,0.22)"/>',
-      svgTextLines(splitText(entry.tagline || data.meta.placeholderNote, 24).slice(0, 2), 494, 392, 24, 18, "#efe6d0", 500),
-      svgTextLines(splitText(entry.description || buildResultSummary(result), 24), 470, 502, 34, 22, "#efe6d0", 400),
-      '<text x="470" y="670" font-size="18" fill="#d5b26c" letter-spacing="4" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">AXIS BREAKDOWN</text>',
+      svgTextLines(splitText(entry.role || "你的桌上职业已经被公会锁定。", 22).slice(0, 2), 500, 330, 30, 24, "#efcf90", 600),
+      svgTextLines(splitText(entry.description || buildResultSummary(result), 24).slice(0, 5), 500, 420, 36, 22, "#f2e8d3", 400),
+      '<rect x="500" y="596" width="560" height="108" rx="24" fill="rgba(143,60,53,0.12)" stroke="rgba(143,60,53,0.24)"/>',
+      svgTextLines(splitText(entry.tagline || "分享页会优先展示你的职业人格与专属台词。", 24).slice(0, 3), 530, 632, 24, 18, "#efcf90", 500),
+      '<text x="78" y="734" font-size="20" fill="#d0a85c" letter-spacing="5" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">四轴判定</text>',
       axisSvg,
-      '<text x="84" y="1060" font-size="18" fill="#d5b26c" letter-spacing="4" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">TAG COUNTS</text>',
+      '<text x="78" y="1122" font-size="20" fill="#d0a85c" letter-spacing="5" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">标签计数</text>',
       tagSvg,
-      '<text x="84" y="1328" font-size="18" fill="#d5b26c" letter-spacing="4" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">RULES</text>',
-      svgTextLines(tieLines, 84, 1372, 34, 22, "#efe6d0", 400),
-      '<text x="84" y="1498" font-size="18" fill="#b8ac93" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">团桌生物鉴定 · 新版题库结果图导出</text>',
+      '<text x="78" y="1508" font-size="18" fill="#baa98d" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">跑团职业检定</text>',
       "</svg>",
     ].join("");
   }
@@ -920,6 +988,7 @@
     link.download = filename;
     document.body.appendChild(link);
     link.click();
+
     setTimeout(function () {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
@@ -953,10 +1022,12 @@
 
         canvas.toBlob(function (blob) {
           URL.revokeObjectURL(url);
+
           if (!blob) {
             reject(new Error("PNG export failed"));
             return;
           }
+
           resolve(blob);
         }, "image/png");
       };
@@ -973,7 +1044,7 @@
   function fallbackSvgDownload(svg) {
     downloadBlob(
       new Blob([svg], { type: "image/svg+xml;charset=utf-8" }),
-      "团桌生物鉴定-" + state.result.shortCode + ".svg"
+      "跑团职业检定-" + state.result.shortCode + ".svg"
     );
     setFeedback("PNG 生成失败，已回退导出 SVG。");
   }
@@ -985,12 +1056,12 @@
 
     var svg = buildShareCardSvg();
     downloadButton.disabled = true;
-    setFeedback("正在生成 PNG 结果图...");
+    setFeedback("正在生成结果图...");
 
     svgToPngBlob(svg, 2)
       .then(function (blob) {
-        downloadBlob(blob, "团桌生物鉴定-" + state.result.shortCode + ".png");
-        setFeedback("PNG 结果图已导出。");
+        downloadBlob(blob, "跑团职业检定-" + state.result.shortCode + ".png");
+        setFeedback("结果图已导出。");
       })
       .catch(function () {
         fallbackSvgDownload(svg);
@@ -1000,14 +1071,24 @@
       });
   }
 
-  startButton.addEventListener("click", startQuiz);
-  restartInlineButton.addEventListener("click", restartQuiz);
-  prevButton.addEventListener("click", goPrev);
-  nextButton.addEventListener("click", goNext);
-  copyButton.addEventListener("click", copyShareText);
-  copyLinkButton.addEventListener("click", copyResultLink);
-  downloadButton.addEventListener("click", downloadShareCard);
-  restartButton.addEventListener("click", restartQuiz);
+  function handlePersonaCardClick(event) {
+    var button = event.target.closest("[data-result]");
+    var slug;
+    var entry;
+
+    if (!button) {
+      return;
+    }
+
+    slug = button.getAttribute("data-result");
+    entry = resultSlugLookup[slug];
+
+    if (!entry) {
+      return;
+    }
+
+    openSharedResult(entry);
+  }
 
   function bootstrapSharedResult() {
     var params = new URLSearchParams(window.location.search);
@@ -1018,11 +1099,7 @@
       return false;
     }
 
-    entry =
-      resultSlugLookup[resultParam] ||
-      resultShortLookup[resultParam] ||
-      resultLookup[resultParam] ||
-      null;
+    entry = resultSlugLookup[resultParam] || resultShortLookup[resultParam] || resultLookup[resultParam] || null;
 
     if (!entry) {
       return false;
@@ -1030,13 +1107,23 @@
 
     state.result = buildSharedResult(entry);
     renderResult();
-    renderAtlas(entry.code);
     showView("result");
     return true;
   }
 
+  startButton.addEventListener("click", startQuiz);
+  restartInlineButton.addEventListener("click", startQuiz);
+  quitButton.addEventListener("click", exitQuiz);
+  prevButton.addEventListener("click", goPrev);
+  copyButton.addEventListener("click", copyShareText);
+  copyLinkButton.addEventListener("click", copyResultLink);
+  downloadButton.addEventListener("click", downloadShareCard);
+  restartButton.addEventListener("click", startQuiz);
+  atlasGrid.addEventListener("click", handlePersonaCardClick);
+
   renderHome();
+
   if (!bootstrapSharedResult()) {
-    renderAtlas("");
+    showView("home");
   }
 })();
