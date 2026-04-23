@@ -198,6 +198,54 @@ body::before {
   gap: 12px;
 }
 
+.site-footer {
+  display: flex;
+  justify-content: center;
+  margin-top: 28px;
+}
+
+.site-footer-link {
+  display: grid;
+  gap: 6px;
+  width: min(520px, 100%);
+  padding: 16px 18px;
+  text-align: center;
+  text-decoration: none;
+  color: var(--text);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 245, 224, 0.08);
+  background:
+    linear-gradient(180deg, rgba(56, 90, 125, 0.06), transparent 100%),
+    rgba(255, 255, 255, 0.02);
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.site-footer-link:hover {
+  transform: translateY(-1px);
+  border-color: rgba(120, 157, 204, 0.28);
+  background:
+    linear-gradient(180deg, rgba(56, 90, 125, 0.1), transparent 100%),
+    rgba(255, 255, 255, 0.028);
+}
+
+.site-footer-kicker {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.site-footer-link strong {
+  font-family: var(--font-display);
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.site-footer-meta {
+  color: var(--accent-strong);
+  font-size: 13px;
+}
+
 .text-link {
   color: var(--accent-strong);
   text-decoration: none;
@@ -1070,6 +1118,10 @@ h3,
 
   .button {
     width: 100%;
+  }
+
+  .site-footer-link {
+    padding: 14px 16px;
   }
 
   .result-name {
