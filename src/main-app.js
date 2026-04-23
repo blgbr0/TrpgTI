@@ -157,7 +157,7 @@
 
   function renderHome() {
     heroTitle.textContent = data.meta.title;
-    heroSubtitle.textContent = "28 题，测出你的团桌职业";
+    heroSubtitle.textContent = "32 题，测出你的团桌职业";
     renderAtlas("");
   }
 
@@ -241,6 +241,7 @@
 
   function renderAtlas(activeCode) {
     atlasGrid.innerHTML = data.results
+      .filter(function (item) { return !item.hidden; })
       .map(function (item) {
         return buildPersonaCard(item, "atlas", activeCode);
       })
@@ -414,6 +415,34 @@
       .join("·");
 
     var resultEntry = resultLookup[code];
+
+    // --- Easter egg detection ---
+    var fireballCount = 0;
+    var poleCount = 0;
+    var totalFireball = 0;
+    var totalPole = 0;
+    data.questions.forEach(function (q) {
+      q.options.forEach(function (opt) {
+        opt.tags.forEach(function (t) {
+          if (t === "\ud83d\udd25\u706b\u7403\u672f") totalFireball++;
+          if (t === "\ud83d\udccf\u5341\u5c3a\u6746") totalPole++;
+        });
+      });
+    });
+    state.answers.forEach(function (answer) {
+      if (!answer) return;
+      answer.tags.forEach(function (tag) {
+        if (tag === "\ud83d\udd25\u706b\u7403\u672f") fireballCount++;
+        if (tag === "\ud83d\udccf\u5341\u5c3a\u6746") poleCount++;
+      });
+    });
+    if (totalFireball > 0 && fireballCount >= totalFireball) {
+      resultEntry = resultSlugLookup["hidden-fireball"] || resultEntry;
+    } else if (totalPole > 0 && poleCount >= totalPole) {
+      resultEntry = resultSlugLookup["hidden-pole"] || resultEntry;
+    }
+    // --- End easter egg detection ---
+
     var tieNotes = axisBreakdown
       .map(function (item) {
         return item.note;
