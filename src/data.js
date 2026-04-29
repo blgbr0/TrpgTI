@@ -2,11 +2,11 @@
   window.RPG_PERSONALITY_TEST = {
     meta: {
       title: "跑团职业检定",
-      subtitle: "28 题测出你的四轴跑团代码",
+      subtitle: "32 题，测出你的团桌职业",
       intro:
         "新版题库改成了 4 条二元轴：莽 / 苟、机制 / 乐子、独 / 团、戏精 / 功利。先跑出你的四轴代码，再把它映射到最像你的那种跑团职业人格。",
       stats: [
-        { label: "场景题", value: "28" },
+        { label: "场景题", value: "32" },
         { label: "二元轴", value: "4" },
         { label: "标签", value: "8" },
         { label: "结果页", value: "16" },

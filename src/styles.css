@@ -316,6 +316,13 @@ h3,
   justify-content: center;
 }
 
+.home-tip {
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
 #hero-title {
   font-size: clamp(46px, 7vw, 88px);
   line-height: 0.94;
@@ -843,6 +850,18 @@ h3,
   color: var(--muted);
   line-height: 1.7;
   white-space: pre-wrap;
+}
+
+.copy-feedback.is-info {
+  color: var(--muted);
+}
+
+.copy-feedback.is-success {
+  color: #cfe6b0;
+}
+
+.copy-feedback.is-warning {
+  color: #f3c5bb;
 }
 
 .result-analysis {

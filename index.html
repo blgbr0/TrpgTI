@@ -6,7 +6,7 @@
     <title>跑团职业检定</title>
     <meta
       name="description"
-      content="28题测出你的跑团职业人格。基于新版题库的静态人格测试，映射到 16 种跑团职业结果。"
+      content="32题测出你的跑团职业人格。基于新版题库的静态人格测试，映射到 16 种跑团职业结果。"
     >
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23111111'/%3E%3Cpath d='M18 16h28v8H18zm0 12h18v8H18zm0 12h28v8H18z' fill='%23d0a85c'/%3E%3Ccircle cx='48' cy='18' r='8' fill='%238f3c35'/%3E%3C/svg%3E">
     <link rel="stylesheet" href="./src/styles.css">
@@ -19,10 +19,12 @@
         <section class="panel hero-panel hero-panel-simple">
           <p class="eyebrow">跑团测试</p>
           <h1 id="hero-title">跑团职业检定</h1>
-          <p id="hero-subtitle" class="hero-subtitle">28 题，测出你的团桌职业</p>
+          <p id="hero-subtitle" class="hero-subtitle">32 题，测出你的团桌职业</p>
           <div class="cta-row">
             <button id="start-button" class="button button-primary" type="button">开始鉴定</button>
+            <button id="continue-button" class="button button-ghost" type="button" hidden>继续上次作答</button>
           </div>
+          <p id="resume-note" class="home-tip" hidden></p>
         </section>
 
         <section id="atlas" class="panel atlas-panel">
@@ -56,7 +58,7 @@
             <div id="question-options" class="option-list"></div>
             <div class="quiz-actions">
               <button id="prev-button" class="button button-ghost" type="button">上一题</button>
-              <p class="quiz-tip">点击选项后会自动进入下一题。</p>
+              <p class="quiz-tip">已自动保存到当前浏览器，点击选项后会自动进入下一题。</p>
             </div>
           </section>
         </div>
@@ -81,10 +83,10 @@
               <blockquote id="result-quote" class="result-quote"></blockquote>
               <p id="result-note" class="result-note" hidden></p>
               <div class="cta-row">
-                <button id="copy-button" class="button button-primary" type="button">复制分享文案</button>
+                <button id="download-button" class="button button-primary" type="button">导出结果图</button>
+                <button id="copy-button" class="button button-ghost" type="button">复制分享文案</button>
                 <button id="copy-link-button" class="button button-ghost" type="button">复制结果链接</button>
-                <button id="download-button" class="button button-ghost" type="button">导出结果图</button>
-                <button id="restart-button" class="button button-ghost" type="button">再测一次</button>
+                <button id="restart-button" class="button button-ghost button-muted" type="button">再测一次</button>
               </div>
               <p id="copy-feedback" class="copy-feedback" aria-live="polite"></p>
             </div>

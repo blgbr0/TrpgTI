@@ -13,6 +13,9 @@
     result: null,
     advanceTimer: null,
   };
+  var STORAGE_KEY = "trpgti.quiz-progress.v1";
+  var feedbackTimer = null;
+  var posterObserver = null;
 
   var resultLookup = data.results.reduce(function (acc, item) {
     acc[item.code] = item;
@@ -47,8 +50,11 @@
   var resultView = document.getElementById("result-view");
   var heroTitle = document.getElementById("hero-title");
   var heroSubtitle = document.getElementById("hero-subtitle");
+  var metaDescription = document.querySelector('meta[name="description"]');
   var atlasGrid = document.getElementById("atlas-grid");
   var startButton = document.getElementById("start-button");
+  var continueButton = document.getElementById("continue-button");
+  var resumeNote = document.getElementById("resume-note");
   var restartInlineButton = document.getElementById("restart-inline-button");
   var quitButton = document.getElementById("quit-button");
   var questionCounter = document.getElementById("question-counter");
@@ -99,8 +105,25 @@
     }
   }
 
-  function setFeedback(text) {
+  function setFeedback(text, tone, persist) {
+    if (feedbackTimer) {
+      window.clearTimeout(feedbackTimer);
+      feedbackTimer = null;
+    }
+
     copyFeedback.textContent = text;
+    copyFeedback.classList.remove("is-info", "is-success", "is-warning");
+
+    if (tone) {
+      copyFeedback.classList.add("is-" + tone);
+    }
+
+    if (!persist && text) {
+      feedbackTimer = window.setTimeout(function () {
+        feedbackTimer = null;
+        resetFeedback();
+      }, 2200);
+    }
   }
 
   function getBasePageUrl() {
@@ -115,6 +138,258 @@
 
   function clearResultUrl() {
     writeUrl(getBasePageUrl());
+  }
+
+  function getQuestionCount() {
+    return data.questions.length;
+  }
+
+  function getVisibleResultCount() {
+    return data.results.filter(function (item) {
+      return !item.hidden;
+    }).length;
+  }
+
+  function getHeroSubtitleText() {
+    return data.meta.subtitle || getQuestionCount() + " 题，测出你的团桌职业";
+  }
+
+  function getMetaDescriptionText() {
+    return (
+      getQuestionCount() +
+      "题测出你的跑团职业人格。基于新版题库的静态人格测试，映射到 " +
+      getVisibleResultCount() +
+      " 种跑团职业结果。"
+    );
+  }
+
+  function getDefaultFeedbackText() {
+    if (!state.result) {
+      return "";
+    }
+
+    if (state.result.sharedOnly) {
+      return "这是分享页版本，可直接导出结果图或复制链接。";
+    }
+
+    return "建议先导出结果图，再复制文案或结果链接。";
+  }
+
+  function resetFeedback() {
+    var defaultText = getDefaultFeedbackText();
+    setFeedback(defaultText, defaultText ? "info" : "", true);
+  }
+
+  function createAnswerRecord(question, optionIndex) {
+    var option = question.options[optionIndex];
+
+    if (!option) {
+      return null;
+    }
+
+    return {
+      questionId: question.id,
+      optionIndex: optionIndex,
+      label: option.label,
+      tags: option.tags.slice(),
+    };
+  }
+
+  function getAnsweredCount(answers) {
+    return answers.filter(Boolean).length;
+  }
+
+  function clearSavedProgress() {
+    try {
+      window.localStorage.removeItem(STORAGE_KEY);
+    } catch (error) {}
+  }
+
+  function readSavedProgress() {
+    var raw;
+    var saved;
+    var optionIndexes;
+
+    try {
+      raw = window.localStorage.getItem(STORAGE_KEY);
+    } catch (error) {
+      return null;
+    }
+
+    if (!raw) {
+      return null;
+    }
+
+    try {
+      saved = JSON.parse(raw);
+    } catch (error) {
+      clearSavedProgress();
+      return null;
+    }
+
+    if (
+      !saved ||
+      saved.version !== 1 ||
+      !Array.isArray(saved.optionIndexes) ||
+      saved.optionIndexes.length !== getQuestionCount() ||
+      typeof saved.currentIndex !== "number" ||
+      saved.currentIndex < 0 ||
+      saved.currentIndex >= getQuestionCount()
+    ) {
+      clearSavedProgress();
+      return null;
+    }
+
+    optionIndexes = saved.optionIndexes.map(function (optionIndex, index) {
+      if (optionIndex === null) {
+        return null;
+      }
+
+      if (typeof optionIndex !== "number" || optionIndex < 0 || optionIndex >= data.questions[index].options.length) {
+        return "__INVALID__";
+      }
+
+      return optionIndex;
+    });
+
+    if (optionIndexes.indexOf("__INVALID__") > -1) {
+      clearSavedProgress();
+      return null;
+    }
+
+    saved.optionIndexes = optionIndexes;
+    return saved;
+  }
+
+  function saveQuizProgress() {
+    var answeredCount = getAnsweredCount(state.answers);
+    var payload;
+
+    try {
+      if (!window.localStorage) {
+        return;
+      }
+    } catch (error) {
+      return;
+    }
+
+    if (!answeredCount || answeredCount >= getQuestionCount()) {
+      clearSavedProgress();
+      return;
+    }
+
+    payload = {
+      version: 1,
+      currentIndex: Math.max(0, Math.min(state.currentIndex, getQuestionCount() - 1)),
+      optionIndexes: state.answers.map(function (answer) {
+        return answer ? answer.optionIndex : null;
+      }),
+    };
+
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    } catch (error) {}
+  }
+
+  function refreshResumeEntry() {
+    var saved = readSavedProgress();
+    var answeredCount;
+    var nextQuestion;
+
+    if (!continueButton || !resumeNote) {
+      return;
+    }
+
+    if (!saved) {
+      continueButton.hidden = true;
+      resumeNote.hidden = true;
+      resumeNote.textContent = "";
+      return;
+    }
+
+    answeredCount = saved.optionIndexes.filter(function (item) {
+      return item !== null;
+    }).length;
+
+    if (!answeredCount || answeredCount >= getQuestionCount()) {
+      continueButton.hidden = true;
+      resumeNote.hidden = true;
+      resumeNote.textContent = "";
+      clearSavedProgress();
+      return;
+    }
+
+    nextQuestion = Math.min(saved.currentIndex + 1, getQuestionCount());
+    continueButton.hidden = false;
+    continueButton.textContent = "继续第 " + nextQuestion + " 题";
+    resumeNote.hidden = false;
+    resumeNote.textContent = "已答 " + answeredCount + " / " + getQuestionCount() + "，进度只保存在当前浏览器。";
+  }
+
+  function resumeSavedQuiz() {
+    var saved = readSavedProgress();
+
+    if (!saved) {
+      refreshResumeEntry();
+      return;
+    }
+
+    state.answers = saved.optionIndexes.map(function (optionIndex, index) {
+      if (optionIndex === null) {
+        return null;
+      }
+
+      return createAnswerRecord(data.questions[index], optionIndex);
+    });
+    state.currentIndex = Math.max(0, Math.min(saved.currentIndex || 0, getQuestionCount() - 1));
+    state.result = null;
+    clearResultUrl();
+    setFeedback("", "", true);
+    renderQuestion();
+    showView("quiz");
+    scrollToTop();
+  }
+
+  function bootstrapSavedProgress() {
+    if (!readSavedProgress()) {
+      return false;
+    }
+
+    resumeSavedQuiz();
+    return true;
+  }
+
+  function ensurePosterObserver() {
+    if (posterObserver || !window.IntersectionObserver) {
+      return posterObserver;
+    }
+
+    posterObserver = new window.IntersectionObserver(
+      function (entries, observer) {
+        entries.forEach(function (entry) {
+          if (!entry.isIntersecting) {
+            return;
+          }
+
+          loadDeferredPoster(entry.target);
+          observer.unobserve(entry.target);
+        });
+      },
+      { rootMargin: "220px 0px" }
+    );
+
+    return posterObserver;
+  }
+
+  function loadDeferredPoster(image) {
+    var actualSrc = image.getAttribute("data-src");
+
+    if (!actualSrc) {
+      return;
+    }
+
+    image.src = actualSrc;
+    image.removeAttribute("data-src");
   }
 
   function getResultParamValue(result) {
@@ -157,8 +432,12 @@
 
   function renderHome() {
     heroTitle.textContent = data.meta.title;
-    heroSubtitle.textContent = "32 题，测出你的团桌职业";
+    heroSubtitle.textContent = getHeroSubtitleText();
+    if (metaDescription) {
+      metaDescription.setAttribute("content", getMetaDescriptionText());
+    }
     renderAtlas("");
+    refreshResumeEntry();
   }
 
   function getResultImagePath(item) {
@@ -176,10 +455,20 @@
   }
 
   function hydratePosterImages(root) {
+    var observer = ensurePosterObserver();
+
     Array.prototype.forEach.call(root.querySelectorAll(".js-poster"), function (image) {
       image.onerror = function () {
         applyPosterFallback(image);
       };
+
+      if (image.dataset.src) {
+        if (observer) {
+          observer.observe(image);
+        } else {
+          loadDeferredPoster(image);
+        }
+      }
     });
   }
 
@@ -213,10 +502,12 @@
       '<img class="' +
       posterClass +
       ' js-poster" src="' +
+      escapeHtml(fallback) +
+      '" data-src="' +
       escapeHtml(getResultImagePath(item)) +
       '" data-fallback="' +
       escapeHtml(fallback) +
-      '" alt="' +
+      '" loading="lazy" decoding="async" fetchpriority="low" alt="' +
       escapeHtml(item.name) +
       ' 人格海报">' +
       '<div class="' +
@@ -258,11 +549,12 @@
 
   function startQuiz() {
     clearPendingAdvance();
+    clearSavedProgress();
     state.currentIndex = 0;
     state.answers = createEmptyAnswers();
     state.result = null;
     clearResultUrl();
-    setFeedback("");
+    setFeedback("", "", true);
     renderQuestion();
     showView("quiz");
     scrollToTop();
@@ -272,6 +564,7 @@
     clearPendingAdvance();
     clearResultUrl();
     showView("home");
+    refreshResumeEntry();
     scrollToTop();
   }
 
@@ -313,20 +606,15 @@
     });
 
     prevButton.disabled = state.currentIndex === 0;
+    saveQuizProgress();
   }
 
   function selectAnswer(optionIndex) {
     var question = data.questions[state.currentIndex];
-    var option = question.options[optionIndex];
 
     clearPendingAdvance();
 
-    state.answers[state.currentIndex] = {
-      questionId: question.id,
-      optionIndex: optionIndex,
-      label: option.label,
-      tags: option.tags.slice(),
-    };
+    state.answers[state.currentIndex] = createAnswerRecord(question, optionIndex);
 
     renderQuestion();
 
@@ -487,6 +775,7 @@
 
   function finishQuiz() {
     clearPendingAdvance();
+    clearSavedProgress();
     state.result = computeResult();
     syncResultUrl(state.result);
     renderResult();
@@ -647,7 +936,7 @@
     var noteText = "";
 
     if (result.sharedOnly) {
-      noteText = "这是一个可直接分享的人格页，未携带原始作答计分。想看完整分析，需要重新作答一次。";
+      noteText = "这是分享页版本：保留人格结论，不带原始计分。想看完整标签统计，需要重新作答。";
     } else if (result.tieNotes.length) {
       noteText = result.tieNotes.join(" ");
     } else if (!entry.name || !entry.description) {
@@ -669,9 +958,10 @@
     renderTagCounts(result.tagCounts, result.axisBreakdown, result.sharedOnly);
     renderAtlas(result.code);
 
-    profilePanel.open = false;
-    axisPanel.open = false;
+    profilePanel.open = true;
+    axisPanel.open = result.sharedOnly;
     tagPanel.open = false;
+    resetFeedback();
   }
 
   function buildShareText() {
@@ -727,17 +1017,17 @@
       navigator.clipboard
         .writeText(text)
         .then(function () {
-          setFeedback("分享文案已复制。");
+          setFeedback("分享文案已复制。", "success");
         })
         .catch(function () {
           copyUsingTextarea(text);
-          setFeedback("分享文案已复制。");
+          setFeedback("分享文案已复制。", "success");
         });
       return;
     }
 
     copyUsingTextarea(text);
-    setFeedback("分享文案已复制。");
+    setFeedback("分享文案已复制。", "success");
   }
 
   function copyResultLink() {
@@ -751,17 +1041,17 @@
       navigator.clipboard
         .writeText(text)
         .then(function () {
-          setFeedback("结果链接已复制。");
+          setFeedback("结果链接已复制。", "success");
         })
         .catch(function () {
           copyUsingTextarea(text);
-          setFeedback("结果链接已复制。");
+          setFeedback("结果链接已复制。", "success");
         });
       return;
     }
 
     copyUsingTextarea(text);
-    setFeedback("结果链接已复制。");
+    setFeedback("结果链接已复制。", "success");
   }
 
   function escapeSvg(text) {
@@ -896,7 +1186,72 @@
     return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(buildPosterSvg(item, width, height));
   }
 
-  function buildShareCardSvg() {
+  function blobToDataUrl(blob) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+
+      reader.onload = function () {
+        resolve(reader.result);
+      };
+
+      reader.onerror = function () {
+        reject(new Error("Image data conversion failed"));
+      };
+
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  function imageElementToDataUrl(image) {
+    if (!image || !image.complete || !image.naturalWidth || !image.naturalHeight) {
+      return "";
+    }
+
+    try {
+      var canvas = document.createElement("canvas");
+      var context = canvas.getContext("2d");
+
+      if (!context) {
+        return "";
+      }
+
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      context.drawImage(image, 0, 0);
+      return canvas.toDataURL("image/png");
+    } catch (error) {
+      return "";
+    }
+  }
+
+  function loadSharePosterDataUrl(result, imageElement) {
+    var imagePath = getResultImagePath(result);
+    var fallback = buildPosterDataUrl(result, 440, 620);
+    var elementDataUrl = imageElementToDataUrl(imageElement);
+
+    if (elementDataUrl) {
+      return Promise.resolve(elementDataUrl);
+    }
+
+    if (!imagePath) {
+      return Promise.resolve(fallback);
+    }
+
+    return fetch(imagePath)
+      .then(function (response) {
+        if (!response.ok) {
+          throw new Error("Poster image unavailable");
+        }
+
+        return response.blob();
+      })
+      .then(blobToDataUrl)
+      .catch(function () {
+        return fallback;
+      });
+  }
+
+  function buildShareCardSvg(posterDataUrl) {
     var result = state.result;
     var entry = result.entry || {};
     var axisSvg = result.axisBreakdown
@@ -986,7 +1341,7 @@
       '<rect width="1200" height="1600" fill="#100d0b"/>',
       '<rect x="36" y="36" width="1128" height="1528" rx="36" fill="rgba(28,22,18,0.96)" stroke="rgba(211,173,104,0.18)"/>',
       '<image href="' +
-        buildPosterDataUrl(result, 440, 620) +
+        posterDataUrl +
         '" x="78" y="118" width="380" height="536" preserveAspectRatio="xMidYMid meet"/>',
       '<text x="500" y="132" font-size="20" fill="#d0a85c" letter-spacing="5" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">冒险者公会鉴定报告</text>',
       '<text x="500" y="224" font-size="68" fill="#f2e8d3" font-weight="700" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif">' +
@@ -1075,7 +1430,7 @@
       new Blob([svg], { type: "image/svg+xml;charset=utf-8" }),
       "跑团职业检定-" + state.result.shortCode + ".svg"
     );
-    setFeedback("PNG 生成失败，已回退导出 SVG。");
+    setFeedback("PNG 生成失败，已回退导出 SVG。", "warning", true);
   }
 
   function downloadShareCard() {
@@ -1083,17 +1438,26 @@
       return;
     }
 
-    var svg = buildShareCardSvg();
     downloadButton.disabled = true;
-    setFeedback("正在生成结果图...");
+    setFeedback("正在生成结果图...", "info", true);
 
-    svgToPngBlob(svg, 2)
+    loadSharePosterDataUrl(state.result, resultPoster)
+      .then(function (posterDataUrl) {
+        var svg = buildShareCardSvg(posterDataUrl);
+
+        return svgToPngBlob(svg, 2).catch(function () {
+          fallbackSvgDownload(svg);
+          return Promise.reject(new Error("PNG export failed after SVG fallback"));
+        });
+      })
       .then(function (blob) {
         downloadBlob(blob, "跑团职业检定-" + state.result.shortCode + ".png");
-        setFeedback("结果图已导出。");
+        setFeedback("结果图已导出。", "success");
       })
-      .catch(function () {
-        fallbackSvgDownload(svg);
+      .catch(function (error) {
+        if (!error || error.message !== "PNG export failed after SVG fallback") {
+          setFeedback("结果图生成失败，请稍后重试。", "warning", true);
+        }
       })
       .finally(function () {
         downloadButton.disabled = false;
@@ -1141,6 +1505,9 @@
   }
 
   startButton.addEventListener("click", startQuiz);
+  if (continueButton) {
+    continueButton.addEventListener("click", resumeSavedQuiz);
+  }
   restartInlineButton.addEventListener("click", startQuiz);
   quitButton.addEventListener("click", exitQuiz);
   prevButton.addEventListener("click", goPrev);
@@ -1152,7 +1519,7 @@
 
   renderHome();
 
-  if (!bootstrapSharedResult()) {
+  if (!bootstrapSharedResult() && !bootstrapSavedProgress()) {
     showView("home");
   }
 })();
